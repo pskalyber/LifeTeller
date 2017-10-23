@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+xmlns:tools="http://schemas.android.com/tools"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+app:layout_behavior="@string/appbar_scrolling_view_behavior"
+tools:context="com.example.skpark.lifeteller.AndroidSampleActivity"
+tools:showIn="@layout/activity_android_sample"
+    tools:layout_editor_absoluteY="81dp"
+    tools:layout_editor_absoluteX="0dp">
+
+    <Button
+        android:id="@+id/startBtn"
+        android:layout_width="92dp"
+        android:layout_height="42dp"
+        android:text="@string/onCameraButton"
+        tools:layout_editor_absoluteX="34dp"
+        tools:layout_editor_absoluteY="120dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true" />
+
+    <EditText
+        android:id="@+id/accXTxt"
+        android:layout_width="147dp"
+        android:layout_height="32dp"
+        android:layout_above="@+id/accYTxt"
+        android:layout_centerHorizontal="true"
+        android:clickable="false"
+        android:cursorVisible="false"
+        android:ems="8"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:inputType="textPersonName"
+        android:text="acc X"
+        android:textSize="@dimen/fileNameFontSize"
+        android:visibility="visible"
+        tools:layout_editor_absoluteX="7dp"
+        tools:layout_editor_absoluteY="62dp"
+        tools:text="X" />
+
+
+    <EditText
+        android:id="@+id/accYTxt"
+        android:layout_width="147dp"
+        android:layout_height="32dp"
+        android:layout_above="@+id/accZTxt"
+        android:layout_centerHorizontal="true"
+        android:clickable="false"
+        android:cursorVisible="false"
+        android:ems="8"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:inputType="textPersonName"
+        android:text="acc Y"
+        android:textSize="@dimen/fileNameFontSize"
+        android:visibility="visible"
+        tools:layout_editor_absoluteX="7dp"
+        tools:layout_editor_absoluteY="62dp"
+        tools:text="Y" />
+
+    <EditText
+        android:id="@+id/accZTxt"
+        android:layout_width="147dp"
+        android:layout_height="32dp"
+        android:layout_above="@+id/speedTxt"
+        android:layout_centerHorizontal="true"
+        android:clickable="false"
+        android:cursorVisible="false"
+        android:ems="8"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:inputType="textPersonName"
+        android:text="acc Z"
+        android:textSize="@dimen/fileNameFontSize"
+        android:visibility="visible"
+        tools:layout_editor_absoluteX="7dp"
+        tools:layout_editor_absoluteY="62dp"
+        tools:text="Z" />
+
+    <EditText
+        android:id="@+id/speedTxt"
+        android:layout_width="147dp"
+        android:layout_height="32dp"
+        android:layout_above="@+id/startBtn"
+        android:layout_alignEnd="@+id/accZTxt"
+        android:layout_alignStart="@+id/accZTxt"
+        android:clickable="false"
+        android:cursorVisible="false"
+        android:ems="8"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:inputType="textPersonName"
+        android:text="Speed"
+        android:textSize="10dp"
+        tools:text="speed" />
+
+    <FrameLayout
+        android:id="@+id/previewFrame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_above="@+id/accXTxt">
+
+    </FrameLayout>
+
+</RelativeLayout>
