@@ -50,6 +50,18 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
+import android.graphics.Color;
+
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+
+import org.opencv.android.Utils;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
+
 public class AndroidSampleActivity extends AppCompatActivity implements SensorEventListener {
 
     private Button startBtn;
@@ -66,7 +78,7 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
     private CameraSurfaceView cameraView;
 
     private boolean isOnPause = false;
-    private static final int CAPTURE_INTERVAL = 5000;
+    private static final int CAPTURE_INTERVAL = 5000; //촬영 간격
 
     public final static String FOLDER_PATH = "LifeTeller";
     public final static String THUMBNAIL_FOLDER_PATH = "LifeTeller" + File.separator + "thumbnail";
@@ -82,7 +94,9 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
     private double longitude = 0.0;
 
     private long lastTime;
-    private float speed;
+    private int speed;
+    private int brightness;
+    private int blurred;
     private float lastX;
     private float lastY;
     private float lastZ;
@@ -162,6 +176,11 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
                                 m.postRotate(90); //카메라가 반시계 방향으로 90도 돌아가서 찍길래 이 코드로 정상화시킴
                                 bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
 
+                                //썸네일 이미지의 밝기값 추출
+                                brightness = calculateBrightnessEstimate(bitmap, 1);
+                                //썸네일 이미지의 흔들림값 추출
+                                blurred = getBlurredValue(bitmap);
+
                                 //오리지널 파일 저장용 디렉토리 확인 및 파일 저장
                                 if (new File(Environment.getExternalStorageDirectory(), FOLDER_PATH).mkdirs()) {
                                     Log.d("CAMERA", "FOLDER_PATH Created");
@@ -176,7 +195,8 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
                                 exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, String.valueOf(latitude));
                                 exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, String.valueOf(longitude));
                                 exif.setAttribute(ExifInterface.TAG_DATETIME, new SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(new Date()));
-                                exif.setAttribute(ExifInterface.TAG_USER_COMMENT, String.valueOf(x)+";"+String.valueOf(y)+";"+String.valueOf(z)+";"+String.valueOf(speed));
+                                //가속도센서 + 밝기 저장
+                                exif.setAttribute(ExifInterface.TAG_USER_COMMENT, String.valueOf(x)+";"+String.valueOf(y)+";"+String.valueOf(z)+";"+String.valueOf(speed)+";"+ String.valueOf(brightness) + ";" + String.valueOf(blurred));
                                 exif.saveAttributes();
 
                                 //썸네일 파일 저장용 디렉토리 확인 및 파일 저장
@@ -193,7 +213,7 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
                                 System.out.println(dt.toString());
                                 SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss a");
                                 //Toast.makeText(getApplicationContext(), testCounter + "번째 찰칵!", Toast.LENGTH_SHORT).show();
-                                Toast.makeText(getApplicationContext(), sdf.format(dt).toString() + " 찰칵!\nLat: " + String.valueOf(latitude) + "\nLong: " + String.valueOf(longitude) +  "\nSpeed: " + speed, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplicationContext(), sdf.format(dt).toString() + " 찰칵!\nLat: " + String.valueOf(latitude) + "\nLong: " + String.valueOf(longitude) +  "\nSpeed: " + speed + "\nBrightness: " + brightness + "\nBlurred: " + blurred, Toast.LENGTH_SHORT).show();
                                 //latitudeTxt.setText(String.valueOf(testCounter));
                                 //testCounter += 1;
 
@@ -244,7 +264,7 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
                 y = event.values[SensorManager.DATA_Y];
                 z = event.values[SensorManager.DATA_Z];
 
-                speed = Math.abs(x + y + z - lastX - lastY - lastZ) / gabOfTime * 10000;
+                speed = Math.round(Math.abs(x + y + z - lastX - lastY - lastZ) / gabOfTime * 10000);
 
                 if (speed > SHAKE_THRESHOLD) {
                     //Toast.makeText(getApplicationContext(), speed + " 만큼 흔들림", Toast.LENGTH_SHORT).show();
@@ -266,6 +286,8 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
     protected void onResume() {
         super.onResume();
         //isOnPause = false;
+        Log.d("OpenCV", "OpenCV library found inside package. Using it!");
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
     }
 
     @Override
@@ -317,6 +339,92 @@ public class AndroidSampleActivity extends AppCompatActivity implements SensorEv
             }
         }
     }
+
+
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+        @Override
+        public void onManagerConnected(int status) {
+            switch(status) {
+                case LoaderCallbackInterface.SUCCESS:
+                {
+                    Log.d("OpenCV", "OpenCV Loaded successfully.");
+                }
+            }
+        }
+    };
+
+    /**
+     * 흔들림찾기
+     */
+    private int getBlurredValue(android.graphics.Bitmap bitmap) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inDither = true;
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        int l = CvType.CV_8UC1; //8-bit grey scale image
+        Mat matImage = new Mat();
+        Utils.bitmapToMat(bitmap, matImage);
+        Mat matImageGrey = new Mat();
+        Imgproc.cvtColor(matImage, matImageGrey, Imgproc.COLOR_BGR2GRAY);
+
+        Bitmap destImage;
+        destImage = Bitmap.createBitmap(bitmap);
+        Mat dst2 = new Mat();
+        Utils.bitmapToMat(destImage, dst2);
+        Mat laplacianImage = new Mat();
+        dst2.convertTo(laplacianImage, l);
+        Imgproc.Laplacian(matImageGrey, laplacianImage, CvType.CV_8U);
+        Mat laplacianImage8bit = new Mat();
+        laplacianImage.convertTo(laplacianImage8bit, l);
+
+        Bitmap bmp = Bitmap.createBitmap(laplacianImage8bit.cols(), laplacianImage8bit.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(laplacianImage8bit, bmp);
+        int[] pixels = new int[bmp.getHeight() * bmp.getWidth()];
+        bmp.getPixels(pixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight());
+        int maxLap = -16777216; // 16m
+        for (int pixel : pixels) {
+            if (pixel > maxLap)
+                maxLap = pixel;
+        }
+
+        int soglia = -6118750;
+        if (maxLap <= soglia) {
+            System.out.println("is a blur image");
+            //Toast.makeText(this, "Blur Image", Toast.LENGTH_LONG).show();
+        } else {
+            System.out.println("is not a blur image");
+            //Toast.makeText(this, "Clear Image", Toast.LENGTH_LONG).show();
+        }
+        return maxLap;
+    }
+
+    /*
+    Calculates the estimated brightness of an Android Bitmap.
+    pixelSpacing tells how many pixels to skip each pixel. Higher values result in better performance, but a more rough estimate.
+    When pixelSpacing = 1, the method actually calculates the real average brightness, not an estimate.
+    This is what the calculateBrightness() shorthand is for.
+    Do not use values for pixelSpacing that are smaller than 1.
+    사진의 밝기를 추출하기 위함: 어두운 사진을 찾아서 제거할 용도로 활용
+    */
+    public int calculateBrightnessEstimate(android.graphics.Bitmap bitmap, int pixelSpacing) {
+        int R = 0; int G = 0; int B = 0;
+        int height = bitmap.getHeight();
+        int width = bitmap.getWidth();
+        int n = 0;
+        int[] pixels = new int[width * height];
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+        for (int i = 0; i < pixels.length; i += pixelSpacing) {
+            int color = pixels[i];
+            R += Color.red(color);
+            G += Color.green(color);
+            B += Color.blue(color);
+            n++;
+        }
+        System.out.println(R);
+        return (R + B + G) / (n * 3);
+    }
+
+
 
     /**
      * 위치 정보 확인을 위해 정의한 메소드
